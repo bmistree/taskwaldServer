@@ -21,6 +21,12 @@ func (man *Manager) broadcast_ping() {
 	}
 }
 
+func (man *Manager) broadcast_msg(msg string) {
+	for _, value := range man.all_connections {
+		value.send_msg(msg)
+	}
+}
+
 func (man *Manager) manager_loop() {
 	// infinite loop waiting on additional work
 	for {

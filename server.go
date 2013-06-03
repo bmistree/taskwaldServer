@@ -25,7 +25,11 @@ var manager_singleton = Manager{
  */
 func ws_registration_handler(conn *websocket.Conn) {
 	id_counter += 1  // FIXME: make this atomic
-	player := &Player{id: id_counter,msg_output_queue: make(chan string, 256), conn: conn}
+	player := &Player{
+		id: id_counter,
+	        msg_output_queue: make(chan string, 256),
+		conn: conn,
+	        man: &manager_singleton}
 
 	// listen for messages from server to client
 	go player.write_msg_loop()	

@@ -15,19 +15,27 @@ type Player struct {
 	conn *websocket.Conn
 	// each outgoing message
 	msg_output_queue chan string
+	man *Manager
 }
 
 func (player *Player) ping() {
+	player.send_msg ("ping")
+}
+
+func (player *Player) send_msg(msg_to_send string) {
 	// put a message in the channel to send
-	player.msg_output_queue <- "ping"
+	player.msg_output_queue <- msg_to_send
 }
 
 
+const PLAYER_POSITION_MESSAGE_TYPE = "player_position_message"
 type PlayerPositionMessage struct {
-	X,Y,Z float64 
+	MsgType string
+	ID uint32
+	X,Y,Z float64
 }
 
-func try_decode_player_position_msg(msg string) bool{
+func (player *Player) try_decode_player_position_msg(msg string) bool{
 	var ppm PlayerPositionMessage
 	err := json.Unmarshal([]byte(msg),&ppm)
 	if err != nil {
@@ -35,6 +43,17 @@ func try_decode_player_position_msg(msg string) bool{
 		return false
 	}
 
+	if (ppm.MsgType != PLAYER_POSITION_MESSAGE_TYPE) {
+		return false
+	}
+
+	ppm.ID = player.id
+	player.pos.x = ppm.X
+	player.pos.y = ppm.Y
+	player.pos.z = ppm.Z	
+	
+	byter, _ := json.Marshal(ppm)
+	player.man.broadcast_msg(string(byter))
 	log.Println("Received position message")
 	return true
 }
@@ -55,7 +74,7 @@ func (player * Player) read_msg_loop() {
 			break
 		}
 		
-		if try_decode_player_position_msg(message) {
+		if player.try_decode_player_position_msg(message) {
 		} else {
 			log.Println("Unknown message type")
 		}		
