@@ -12,7 +12,8 @@ var id_counter uint32 = 0
 var manager_singleton = Manager{
 	all_connections: make (map [uint32] *Player),
 	register_channel: make (chan *Player),
-        unregister_channel: make (chan *Player)}
+	unregister_channel: make (chan *Player),
+        position_update_channel: make (chan PlayerPositionMessage)}
 
 
 /**
@@ -49,9 +50,7 @@ func main(){
 	// pos := Position {0,0,0}
 	// pos.x = pos.y;
 	// Start listening at address
-
 	log.Println("Listening for connections");
-
 	go manager_singleton.manager_loop()
 	http.Handle("/ws", websocket.Handler(ws_registration_handler))
 	if err := http.ListenAndServe(LISTENING_ADDR, nil); err != nil {

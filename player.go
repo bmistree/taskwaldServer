@@ -35,6 +35,7 @@ type PlayerPositionMessage struct {
 	X,Y,Z float64
 }
 
+
 func (player *Player) try_decode_player_position_msg(msg string) bool{
 	var ppm PlayerPositionMessage
 	err := json.Unmarshal([]byte(msg),&ppm)
@@ -51,12 +52,15 @@ func (player *Player) try_decode_player_position_msg(msg string) bool{
 	player.pos.x = ppm.X
 	player.pos.y = ppm.Y
 	player.pos.z = ppm.Z	
-	
-	byter, _ := json.Marshal(ppm)
-	player.man.broadcast_msg(string(byter))
+
+	player.man.receive_position_update(ppm)
+	// // byter, _ := json.Marshal(ppm)
+	// // player.man.broadcast_msg(string(byter))
+	// player.man.receive_position_update(string(byter),player)
 	log.Println("Received position message")
 	return true
 }
+
 
 
 // should be three types of messages:
