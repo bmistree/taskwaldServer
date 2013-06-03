@@ -1,15 +1,9 @@
 package main
-
 import "log"
 import "code.google.com/p/go.net/websocket"
 import "net/http"
-import "github.com/bmistree/taskwaldServer/player"
 
 var LISTENING_ADDR = "127.0.0.1:18080"
-
-type Position struct {
-	x, y, z float64
-}
 
 
 /***************** MANAGER DEFINITIONS ********/

@@ -1,6 +1,11 @@
-package player
+package main
 
 import "log"
+import "code.google.com/p/go.net/websocket"
+
+type Position struct {
+	x, y, z float64
+}
 
 type Player struct {
 	id uint32
