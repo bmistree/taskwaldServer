@@ -29,10 +29,16 @@ func (player *Player) send_msg(msg_to_send string) {
 
 
 const PLAYER_POSITION_MESSAGE_TYPE = "player_position_message"
+const PLAYER_LOGOUT_MESSAGE_TYPE = "player_disconnected_message"
 type PlayerPositionMessage struct {
 	MsgType string
 	ID uint32
 	X,Y,Z float64
+}
+
+type PlayerLogoutMessage struct {
+	MsgType string
+	ID uint32
 }
 
 
@@ -54,9 +60,6 @@ func (player *Player) try_decode_player_position_msg(msg string) bool{
 	player.pos.z = ppm.Z	
 
 	player.man.receive_position_update(ppm)
-	// // byter, _ := json.Marshal(ppm)
-	// // player.man.broadcast_msg(string(byter))
-	// player.man.receive_position_update(string(byter),player)
 	log.Println("Received position message")
 	return true
 }
