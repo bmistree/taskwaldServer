@@ -13,22 +13,29 @@ var manager_singleton = Manager{
 	all_connections: make (map [uint32] *Player),
 	register_channel: make (chan *Player),
 	unregister_channel: make (chan *Player),
-	position_update_channel: make (chan PlayerPositionMessage),
-	gold_message_channel: make (chan *GoldMessage)}
+
+	// note: using unbuffered channels to avoid deadlock.  for all
+	// of these, if end up dropping messages because queue fills
+	// up, may need to send out sync messages to ensure everyone
+	// has same view of world again.
+	position_update_channel: make (chan PlayerPositionMessage, 50),
+	gold_message_channel: make (chan * GoldMessage, 50),
+        player_gold_message_channel: make (chan PlayerGoldMessage, 50)}
+
 
 var gold_manager_singleton = GoldManagerSingleton {
 	stash_id : 0,
 	all_stashes: make (map[GoldStashId] * GoldStash),
 	connection_manager: & manager_singleton}
 
+
 /**
   * When receive a new web socket connection, run this code:
   *    1) Creates a new Player
   *    2) Notifies the manager to include this connection in map
-
   *    3) Starts spinning on channels waiting for sending messages and
-       receiving messages from player
- */
+  *       receiving messages from player
+  */
 func ws_registration_handler(conn *websocket.Conn) {
 	id_counter += 1  // FIXME: make this atomic
 	player := &Player{
@@ -53,6 +60,12 @@ func ws_registration_handler(conn *websocket.Conn) {
 
 
 func main(){
+	// a little gross that have circular references here.  in the
+	// long run, it would have been better to decouple
+	// manager_singleton from gold_manager_singleton and have each
+	// hold a channel to the other....
+	manager_singleton.gold_manager = &gold_manager_singleton
+
 	// pos := Position {0,0,0}
 	// pos.x = pos.y;
 	// Start listening at address

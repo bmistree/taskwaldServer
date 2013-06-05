@@ -43,6 +43,66 @@ type PlayerLogoutMessage struct {
 }
 
 
+/** Gold messages *to* player */
+const TO_PLAYER_GOLD_MESSAGE_TYPE = "to_player_gold_message"	
+type AddedGoldSubmessage struct {
+	stash_id GoldStashId
+	amt uint32
+	X,Y,Z float64
+}
+type DeletedGoldSubmessage struct {
+	stash_id GoldStashId
+}
+type ChangedGoldSubmessage struct {
+	stash_id GoldStashId
+	final_amt uint32
+}
+type GoldMessage struct {
+	MsgType string
+	AddedSubmessages [] AddedGoldSubmessage
+	DeletedSubmessages [] DeletedGoldSubmessage
+	ChangedSubmessages [] ChangedGoldSubmessage
+}
+
+
+/*** Gold messages *from* player */
+const PLAYER_GOLD_MESSAGE_TYPE = "gold_message"
+const PLAYER_GOLD_MESSAGE_TYPE_GRAB = "grab_gold"
+const PLAYER_GOLD_MESSAGE_TYPE_DROP = "drop_gold"
+const PLAYER_GOLD_MESSAGE_TYPE_DEDUCT = "deduct_gold"
+const PLAYER_GOLD_MESSAGE_TYPE_ADD = "add_gold"
+type PlayerGoldMessage struct {
+	// Messages can be from dumping gold on ground, trying to pick
+	// gold up off ground, buying something with gold, or just
+	// adding gold to the world.
+	MsgType string
+	GoldMsgType string
+	ID uint32
+	Amt uint32
+	X, Y, Z float64
+}
+
+
+func (player *Player) try_decode_player_gold_msg(msg string) bool{
+	var pgm PlayerGoldMessage
+	err := json.Unmarshal([]byte(msg),&pgm)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	if pgm.MsgType != PLAYER_GOLD_MESSAGE_TYPE {
+		return false
+	}
+	pgm.ID = player.id
+	player.man.receive_player_gold_message(pgm)
+
+	log.Println("Received gold message")
+	return true
+}
+
+
+
 func (player *Player) try_decode_player_position_msg(msg string) bool{
 	var ppm PlayerPositionMessage
 	err := json.Unmarshal([]byte(msg),&ppm)
@@ -51,17 +111,14 @@ func (player *Player) try_decode_player_position_msg(msg string) bool{
 		return false
 	}
 
-	if (ppm.MsgType != PLAYER_POSITION_MESSAGE_TYPE) {
+	if ppm.MsgType != PLAYER_POSITION_MESSAGE_TYPE {
 		return false
 	}
-
 	ppm.ID = player.id
 	player.pos.x = ppm.X
 	player.pos.y = ppm.Y
 	player.pos.z = ppm.Z	
-
 	player.man.receive_position_update(ppm)
-	log.Println("Received position message")
 	return true
 }
 
@@ -83,7 +140,8 @@ func (player * Player) read_msg_loop() {
 		}
 		
 		if player.try_decode_player_position_msg(message) {
-		} else {
+		} else if player.try_decode_player_gold_msg(message) {
+		} else{
 			log.Println("Unknown message type")
 		}		
 	}

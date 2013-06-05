@@ -16,12 +16,24 @@ type Manager struct {
 
 	// messages received by gold stash manager and sent out to all
 	// players
-	gold_message_channel chan *GoldMessage
+	gold_message_channel chan * GoldMessage
+	// messages received by players about changes to in-game gold
+	// (eg., creating more in-game gold)
+	player_gold_message_channel chan PlayerGoldMessage
+
+	gold_manager * GoldManagerSingleton
 }
 
 func (man * Manager) receive_position_update(ppm PlayerPositionMessage) {
 	// only send update messages to those players that are within
 	man.position_update_channel <- ppm
+}
+
+func (man * Manager) receive_player_gold_message (pgm PlayerGoldMessage) {
+	man.player_gold_message_channel <- pgm
+}
+func (man * Manager) receive_gold_message(gold_message * GoldMessage) {
+	man.gold_message_channel <- gold_message
 }
 
 
@@ -39,6 +51,27 @@ func (man *Manager) broadcast_msg(msg string) {
 		value.send_msg(msg)
 	}
 }
+
+func (man * Manager) handle_player_gold_message(player_gold_message  PlayerGoldMessage) {
+	if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_GRAB) {
+		log.Println("Received request to grab gold")
+	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_DROP) {
+		log.Println("Received request to drop gold")
+	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_DEDUCT) {
+		log.Println("Received request to deduct gold")
+	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_ADD) {
+		// add gold to existing stash if nearby, otherwise, create new stash
+		log.Println("Received request to add gold")
+		var position Position
+		position.x = player_gold_message.X
+		position.y = player_gold_message.Y
+		position.z = player_gold_message.Z
+		man.gold_manager.add_stash(player_gold_message.Amt, position) 
+	} else {
+		log.Println("Warning: unrecognized gold message type")
+	}		
+}
+
 
 func (man *Manager) manager_loop() {
 	// infinite loop waiting on additional work
@@ -68,7 +101,6 @@ func (man *Manager) manager_loop() {
 			}
 			
 		case player_position_message := <- man.position_update_channel:
-			log.Println("Received position update message")
 			byter, _ := json.Marshal(player_position_message)
 			msg_string := string(byter)
 			for key, value := range man.all_connections {
@@ -77,6 +109,11 @@ func (man *Manager) manager_loop() {
 					value.send_msg(msg_string)
 				}
 			}
+		case player_gold_message := <- man.player_gold_message_channel:
+			// Either adding more gold to the world,
+			// grabbing gold, trading in existing gold, or dumping gold.
+			log.Println("Received a request to grab surrounding gold")
+			man.handle_player_gold_message(player_gold_message)
 
 		case gold_message := <- man.gold_message_channel:
 			log.Println("Sending gold message update to all players")

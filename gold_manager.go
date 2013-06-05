@@ -43,33 +43,13 @@ func (gm * GoldManagerSingleton) get_stashes_within_radius(pos Position, radius 
 	return nearby_stashes
 }
 
-type AddedGoldSubmessage struct {
-	stash_id GoldStashId
-	amt uint32
-	pos Position
-}
-
-type DeletedGoldSubmessage struct {
-	stash_id GoldStashId
-}
-type ChangedGoldSubmessage struct {
-	stash_id GoldStashId
-	final_amt uint32
-}
-	
-
-type GoldMessage struct {
-	AddedSubmessages [] AddedGoldSubmessage
-	DeletedSubmessages [] DeletedGoldSubmessage
-	ChangedSubmessages [] ChangedGoldSubmessage
-}
-
 
 func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Position, radius float64) uint32 {
 	gm.acquire_lock()
 	nearby_stashes := gm.get_stashes_within_radius(pos, GRAB_RADIUS)
 
 	gold_message := new (GoldMessage)
+	gold_message.MsgType = TO_PLAYER_GOLD_MESSAGE_TYPE
 
 	var stashes_to_delete [] GoldStashId
 	var total_grabbed uint32
@@ -99,7 +79,7 @@ func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Posi
 		delete (gm.all_stashes, stash_id)	
 	}
 
-	gm.connection_manager.gold_message_channel <- gold_message
+	gm.connection_manager.receive_gold_message(gold_message)
 	player.gold += total_grabbed
 	gm.release_lock()
 	return total_grabbed
@@ -108,15 +88,36 @@ func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Posi
 func (gm * GoldManagerSingleton) add_stash(amt uint32, pos Position) {
 	gm.acquire_lock()
 	nearby_stashes := gm.get_stashes_within_radius(pos, ADD_RADIUS)
-	if (len(nearby_stashes) != 0) {
+	gold_message := new (GoldMessage)
+	
+	gold_message.MsgType = TO_PLAYER_GOLD_MESSAGE_TYPE
+	if len(nearby_stashes) != 0 {
 		gold_stash := nearby_stashes[0]
 		gold_stash.add_gold(amt)
+
+		changed_submessage := ChangedGoldSubmessage {
+			stash_id: gold_stash.stash_id,
+		        final_amt: gold_stash.amt}
+		gold_message.ChangedSubmessages = append (
+			gold_message.ChangedSubmessages,changed_submessage)
 	} else {
 		gm.stash_id += 1
 		new_stash := new (GoldStash)
+
+		
 		new_stash.stash_id = gm.stash_id
 		new_stash.amt = amt
-		new_stash.pos = pos	
+		new_stash.pos = pos
+		added_submessage := AddedGoldSubmessage {
+			stash_id: new_stash.stash_id,
+			amt: new_stash.amt,
+			X: pos.x,
+			Y: pos.y,
+		        Z: pos.z}
+		gold_message.AddedSubmessages = append(
+			gold_message.AddedSubmessages, added_submessage)
 	}
+
+	gm.connection_manager.receive_gold_message(gold_message) 
 	gm.release_lock()
 }
