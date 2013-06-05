@@ -13,8 +13,13 @@ var manager_singleton = Manager{
 	all_connections: make (map [uint32] *Player),
 	register_channel: make (chan *Player),
 	unregister_channel: make (chan *Player),
-        position_update_channel: make (chan PlayerPositionMessage)}
+	position_update_channel: make (chan PlayerPositionMessage),
+	gold_message_channel: make (chan *GoldMessage)}
 
+var gold_manager_singleton = GoldManagerSingleton {
+	stash_id : 0,
+	all_stashes: make (map[GoldStashId] * GoldStash),
+	connection_manager: & manager_singleton}
 
 /**
   * When receive a new web socket connection, run this code:
@@ -30,7 +35,8 @@ func ws_registration_handler(conn *websocket.Conn) {
 		id: id_counter,
 	        msg_output_queue: make(chan string, 256),
 		conn: conn,
-	        man: &manager_singleton}
+		man: &manager_singleton,
+	        gold: 0}
 
 	// listen for messages from server to client
 	go player.write_msg_loop()	

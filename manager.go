@@ -13,6 +13,10 @@ type Manager struct {
 	unregister_channel chan *Player
 	// FIXME: Should probably use a pointer instead
 	position_update_channel chan PlayerPositionMessage
+
+	// messages received by gold stash manager and sent out to all
+	// players
+	gold_message_channel chan *GoldMessage
 }
 
 func (man * Manager) receive_position_update(ppm PlayerPositionMessage) {
@@ -72,6 +76,14 @@ func (man *Manager) manager_loop() {
 					// send the position on
 					value.send_msg(msg_string)
 				}
+			}
+
+		case gold_message := <- man.gold_message_channel:
+			log.Println("Sending gold message update to all players")
+			byter, _ := json.Marshal(gold_message)
+			msg_string := string(byter)
+			for _, value := range man.all_connections {
+				value.send_msg(msg_string)
 			}
 		}
 	}

@@ -12,6 +12,7 @@ type Position struct {
 type Player struct {
 	id uint32
 	pos Position
+	gold uint32
 	conn *websocket.Conn
 	// each outgoing message
 	msg_output_queue chan string
