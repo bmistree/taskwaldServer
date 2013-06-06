@@ -46,16 +46,16 @@ type PlayerLogoutMessage struct {
 /** Gold messages *to* player */
 const TO_PLAYER_GOLD_MESSAGE_TYPE = "to_player_gold_message"	
 type AddedGoldSubmessage struct {
-	stash_id GoldStashId
-	amt uint32
+	StashId GoldStashId
+	Amt uint32
 	X,Y,Z float64
 }
 type DeletedGoldSubmessage struct {
-	stash_id GoldStashId
+	StashId GoldStashId
 }
 type ChangedGoldSubmessage struct {
-	stash_id GoldStashId
-	final_amt uint32
+	StashId GoldStashId
+	FinalAmt uint32
 }
 type GoldMessage struct {
 	MsgType string
