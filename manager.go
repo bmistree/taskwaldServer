@@ -21,6 +21,9 @@ type Manager struct {
 	// (eg., creating more in-game gold)
 	player_gold_message_channel chan PlayerGoldMessage
 
+	// to broadcast to all players
+	plant_message_channel chan PlayerPlantMessage
+	
 	gold_manager * GoldManagerSingleton
 }
 
@@ -34,6 +37,10 @@ func (man * Manager) receive_player_gold_message (pgm PlayerGoldMessage) {
 }
 func (man * Manager) receive_gold_message(gold_message * GoldMessage) {
 	man.gold_message_channel <- gold_message
+}
+
+func (man * Manager) notify_new_plant(plant_message PlayerPlantMessage) {
+	man.plant_message_channel <- plant_message
 }
 
 
@@ -122,6 +129,13 @@ func (man *Manager) manager_loop() {
 			for _, value := range man.all_connections {
 				value.send_msg(msg_string)
 			}
+		case plant_message := <- man.plant_message_channel:
+			byter, _ := json.Marshal(plant_message)
+			msg_string := string(byter)
+			for _, value := range man.all_connections {
+				value.send_msg(msg_string)
+			}
+			
 		}
 	}
 }

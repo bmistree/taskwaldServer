@@ -20,13 +20,19 @@ var manager_singleton = Manager{
 	// has same view of world again.
 	position_update_channel: make (chan PlayerPositionMessage, 50),
 	gold_message_channel: make (chan * GoldMessage, 50),
-        player_gold_message_channel: make (chan PlayerGoldMessage, 50)}
+	player_gold_message_channel: make (chan PlayerGoldMessage, 50),
+        plant_message_channel: make( chan PlayerPlantMessage, 50)}
 
 
 var gold_manager_singleton = GoldManagerSingleton {
 	stash_id : 0,
 	all_stashes: make (map[GoldStashId] * GoldStash),
 	connection_manager: & manager_singleton}
+
+var plant_manager_singleton = PlantManagerSingleton {
+	plant_id : 0,
+	all_plants: make ( map[PlantId] *Plant),
+        connection_manager : & manager_singleton}
 
 
 /**
@@ -43,6 +49,7 @@ func ws_registration_handler(conn *websocket.Conn) {
 	        msg_output_queue: make(chan string, 256),
 		conn: conn,
 		man: &manager_singleton,
+		plant_manager: &plant_manager_singleton,
 	        gold: 0}
 
 	// listen for messages from server to client

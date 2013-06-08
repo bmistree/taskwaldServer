@@ -17,6 +17,7 @@ type Player struct {
 	// each outgoing message
 	msg_output_queue chan string
 	man *Manager
+	plant_manager *PlantManagerSingleton
 }
 
 func (player *Player) ping() {
@@ -40,6 +41,13 @@ type PlayerPositionMessage struct {
 type PlayerLogoutMessage struct {
 	MsgType string
 	ID uint32
+}
+
+/** Both to and from player */
+const PLAYER_PLANT_MESSAGE_TYPE = "player_plant_message"
+type PlayerPlantMessage struct {
+	MsgType string
+	X,Y,Z float64
 }
 
 
@@ -96,11 +104,24 @@ func (player *Player) try_decode_player_gold_msg(msg string) bool{
 	}
 	pgm.ID = player.id
 	player.man.receive_player_gold_message(pgm)
-
-	log.Println("Received gold message")
 	return true
 }
 
+
+func (player * Player) try_decode_player_plant_msg (msg string) bool {
+	var player_plant_message PlayerPlantMessage
+	err := json.Unmarshal([]byte(msg),&player_plant_message)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	if player_plant_message.MsgType != PLAYER_PLANT_MESSAGE_TYPE {
+		return false
+	}
+	player.plant_manager.add_plant(player_plant_message)
+	return true
+}
 
 
 func (player *Player) try_decode_player_position_msg(msg string) bool{
@@ -141,7 +162,8 @@ func (player * Player) read_msg_loop() {
 		
 		if player.try_decode_player_position_msg(message) {
 		} else if player.try_decode_player_gold_msg(message) {
-		} else{
+		} else if player.try_decode_player_plant_msg(message) {
+		} else {
 			log.Println("Unknown message type")
 		}		
 	}
