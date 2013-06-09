@@ -1,6 +1,7 @@
 package main
 
 import "sync"
+import "log"
 
 // Tracks all the individual stashes of gold in the world.  Players
 // track their own gold themselves.
@@ -44,7 +45,15 @@ func (gm * GoldManagerSingleton) get_stashes_within_radius(pos Position, radius 
 }
 
 
-func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Position, radius float64) uint32 {
+func (gm * GoldManagerSingleton) drop_gold(player * Player, amt uint32, pos Position) {
+	var int_amt int32
+	int_amt = int32(amt)
+	amt_to_drop := player.change_gold(-int_amt)
+	gm.add_stash(amt_to_drop, pos)
+}
+
+
+func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Position) uint32 {
 	gm.acquire_lock()
 	nearby_stashes := gm.get_stashes_within_radius(pos, GRAB_RADIUS)
 
@@ -74,13 +83,16 @@ func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Posi
 	}
 
 	for _, stash_id := range stashes_to_delete {
+		log.Println("Removing stash now and sending message")
 		deleted_submessage := DeletedGoldSubmessage  { StashId: stash_id}
 		gold_message.DeletedSubmessages = append(gold_message.DeletedSubmessages,deleted_submessage)
 		delete (gm.all_stashes, stash_id)	
 	}
 
 	gm.connection_manager.receive_gold_message(gold_message)
-	player.gold += total_grabbed
+	var int_total_grabbed int32
+	int_total_grabbed = int32(total_grabbed)
+	player.change_gold(int_total_grabbed)
 	gm.release_lock()
 	return total_grabbed
 }

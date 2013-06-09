@@ -9,6 +9,14 @@ type Position struct {
 	x, y, z float64
 }
 
+func (pos * Position) make_copy () Position{
+	var pos_copy Position
+	pos_copy.x = pos.x
+	pos_copy.y = pos.y
+	pos_copy.z = pos.z
+	return pos_copy
+}
+
 type Player struct {
 	id uint32
 	pos Position
@@ -27,6 +35,50 @@ func (player *Player) ping() {
 func (player *Player) send_msg(msg_to_send string) {
 	// put a message in the channel to send
 	player.msg_output_queue <- msg_to_send
+}
+
+func abs(val int32) int32{
+	if val < 0 {
+		return -val
+	}
+	return val
+}
+
+// Changes gold by amt_to_change_by (note, this value can be
+// negative), while assuring always have >=0 gold on player.  Returns
+// change amount.
+func (player *Player) change_gold (amt_to_change_by int32) uint32 {
+
+	// Actually determine how much gold the player will have left
+	
+	var player_gold int32
+	player_gold = int32(player.gold)
+	
+	var delta uint32
+	delta = 0
+	
+	if player_gold + amt_to_change_by >= 0 {
+		delta = uint32(abs(amt_to_change_by))
+		
+		player_gold += amt_to_change_by
+		player.gold = uint32(abs(player_gold))
+	} else {
+		delta = uint32(player_gold)
+		player.gold = 0
+	}
+	
+	// send final gold value to player for how much gold will have
+	// left.
+
+	var pdm PlayerDataMessage
+	pdm.MsgType = PLAYER_DATA_MESSAGE_TYPE
+	pdm.GoldAmt = player.gold
+
+	byter, _ := json.Marshal(pdm)
+	msg_string := string(byter)
+	player.msg_output_queue <- msg_string
+	
+	return delta
 }
 
 
@@ -88,6 +140,13 @@ type PlayerGoldMessage struct {
 	ID uint32
 	Amt uint32
 	X, Y, Z float64
+}
+
+/*** Messages about the amount of gold the player has */
+const PLAYER_DATA_MESSAGE_TYPE = "player_data_message"
+type PlayerDataMessage struct {
+	MsgType string
+	GoldAmt uint32
 }
 
 

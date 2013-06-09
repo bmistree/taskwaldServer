@@ -60,10 +60,33 @@ func (man *Manager) broadcast_msg(msg string) {
 }
 
 func (man * Manager) handle_player_gold_message(player_gold_message  PlayerGoldMessage) {
+	
 	if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_GRAB) {
-		log.Println("Received request to grab gold")
+		log.Println("Received request to grab gold");
+
+		player_id := player_gold_message.ID
+		player, exists := man.all_connections[player_id]
+		if (! exists) {
+			// player has since disconnected
+			return
+		}
+
+		amt_to_grab := player_gold_message.Amt
+		man.gold_manager.grab_gold(player,amt_to_grab,player.pos.make_copy())
+		
 	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_DROP) {
 		log.Println("Received request to drop gold")
+		
+		player_id := player_gold_message.ID
+		player, exists := man.all_connections[player_id]
+		if (! exists) {
+			// player has disconnected already
+			return
+		}
+
+		amt_to_grab := player_gold_message.Amt
+		man.gold_manager.drop_gold(player,amt_to_grab,player.pos.make_copy())
+		
 	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_DEDUCT) {
 		log.Println("Received request to deduct gold")
 	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_ADD) {
