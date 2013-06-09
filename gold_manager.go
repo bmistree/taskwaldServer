@@ -15,8 +15,8 @@ type GoldManagerSingleton struct {
 	lock sync.Mutex
 }
 
-const GRAB_RADIUS = 3
-const ADD_RADIUS = 1
+const GRAB_RADIUS = 5
+const ADD_RADIUS = 3
 
 func (gm * GoldManagerSingleton) acquire_lock() {
 	gm.lock.Lock()
