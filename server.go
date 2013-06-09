@@ -21,7 +21,8 @@ var manager_singleton = Manager{
 	position_update_channel: make (chan PlayerPositionMessage, 50),
 	gold_message_channel: make (chan * GoldMessage, 50),
 	player_gold_message_channel: make (chan PlayerGoldMessage, 50),
-        plant_message_channel: make( chan PlayerPlantMessage, 50)}
+	plant_message_channel: make( chan PlayerPlantMessage, 50),
+        broadcast_channel: make (chan string, 50)}
 
 
 var gold_manager_singleton = GoldManagerSingleton {
@@ -50,7 +51,8 @@ func ws_registration_handler(conn *websocket.Conn) {
 		conn: conn,
 		man: &manager_singleton,
 		plant_manager: &plant_manager_singleton,
-	        gold: 0}
+		gold: 0,
+	        points: 0}
 
 	// listen for messages from server to client
 	go player.write_msg_loop()	

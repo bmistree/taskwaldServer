@@ -23,7 +23,11 @@ type Manager struct {
 
 	// to broadcast to all players
 	plant_message_channel chan PlayerPlantMessage
-	
+
+	// probably should have used this for all times when
+	// broadcasting a message from the server to player
+	broadcast_channel chan string
+		
 	gold_manager * GoldManagerSingleton
 }
 
@@ -59,6 +63,12 @@ func (man *Manager) broadcast_msg(msg string) {
 	}
 }
 
+func (man *Manager) add_msg_for_broadcast(msg string) {
+	// FIXME: in retrospect, probably should have just used
+	// broadcast channel for all types of messages.
+	man.broadcast_channel <- msg
+}
+
 func (man * Manager) handle_player_gold_message(player_gold_message  PlayerGoldMessage) {
 	
 	if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_GRAB) {
@@ -89,6 +99,15 @@ func (man * Manager) handle_player_gold_message(player_gold_message  PlayerGoldM
 		
 	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_DEDUCT) {
 		log.Println("Received request to deduct gold")
+		
+		// deduct is used to trade gold for player points
+		player_id := player_gold_message.ID
+		player, exists := man.all_connections[player_id]
+		if (! exists) {
+			// player has disconnected already
+			return
+		}
+		player.buy_points(player_gold_message.Amt,man.gold_manager)
 	} else if (player_gold_message.GoldMsgType == PLAYER_GOLD_MESSAGE_TYPE_ADD) {
 		// add gold to existing stash if nearby, otherwise, create new stash
 		log.Println("Received request to add gold")
@@ -158,7 +177,9 @@ func (man *Manager) manager_loop() {
 			for _, value := range man.all_connections {
 				value.send_msg(msg_string)
 			}
-			
+
+		case broadcast_message := <- man.broadcast_channel:
+			man.broadcast_msg(broadcast_message)
 		}
 	}
 }

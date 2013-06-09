@@ -3,6 +3,9 @@ package main
 import "log"
 import "code.google.com/p/go.net/websocket"
 import "encoding/json"
+import "math"
+
+const POINT_EXPONENT float64 = .0092
 
 
 type Position struct {
@@ -21,6 +24,7 @@ type Player struct {
 	id uint32
 	pos Position
 	gold uint32
+	points float64
 	conn *websocket.Conn
 	// each outgoing message
 	msg_output_queue chan string
@@ -47,7 +51,9 @@ func abs(val int32) int32{
 // Changes gold by amt_to_change_by (note, this value can be
 // negative), while assuring always have >=0 gold on player.  Returns
 // change amount.
-func (player *Player) change_gold (amt_to_change_by int32) uint32 {
+// change_score is true if we are spending the gold on our
+// score... ie, we should update our score as well.
+func (player *Player) change_gold (amt_to_change_by int32, change_score bool) uint32 {
 
 	// Actually determine how much gold the player will have left
 	
@@ -66,6 +72,15 @@ func (player *Player) change_gold (amt_to_change_by int32) uint32 {
 		delta = uint32(player_gold)
 		player.gold = 0
 	}
+
+	// update score if spent gold on points
+	// FIXME: refactor into own function so it's more pluggable.
+	if change_score {
+		float_delta := float64(delta)
+		// should guarantee that spending 500 gold gives 100 points
+		player.points += math.Exp(POINT_EXPONENT*float_delta)
+	}
+
 	
 	// send final gold value to player for how much gold will have
 	// left.
@@ -73,10 +88,23 @@ func (player *Player) change_gold (amt_to_change_by int32) uint32 {
 	var pdm PlayerDataMessage
 	pdm.MsgType = PLAYER_DATA_MESSAGE_TYPE
 	pdm.GoldAmt = player.gold
-
+	pdm.Points = player.points
+	pdm.ID = player.id
+	pdm.Me = true
+	
 	byter, _ := json.Marshal(pdm)
 	msg_string := string(byter)
 	player.msg_output_queue <- msg_string
+
+	pdm.Me = false
+	byter, _ = json.Marshal(pdm)
+	msg_string = string(byter)
+
+	if change_score {
+		// notify everyone that this player's score has
+		// changed so that they can update their scoreboards.
+		player.man.add_msg_for_broadcast(msg_string)
+	}
 	
 	return delta
 }
@@ -147,8 +175,13 @@ const PLAYER_DATA_MESSAGE_TYPE = "player_data_message"
 type PlayerDataMessage struct {
 	MsgType string
 	GoldAmt uint32
+	ID uint32
+	Points float64
+	// true if the message is a change to the player that
+	// initiated the event that started the message.  false
+	// otherwise.
+	Me bool
 }
-
 
 func (player *Player) try_decode_player_gold_msg(msg string) bool{
 	var pgm PlayerGoldMessage
@@ -240,4 +273,17 @@ func (player *Player) write_msg_loop() {
 	}
 	// done sending messages.  close connection
 	player.conn.Close()
+}
+
+func (player * Player) buy_points (amt_to_spend uint32,gold_manager * GoldManagerSingleton) {
+	if amt_to_spend > player.gold {
+		// need to try to grab rest of gold from environment... if can
+		diff := amt_to_spend - player.gold
+		amt_grabbed := gold_manager.grab_gold(player,diff,player.pos)
+		amt_to_spend = amt_grabbed + player.gold
+	}
+	
+	var int_amt_to_spend int32
+	int_amt_to_spend = int32(amt_to_spend)
+	player.change_gold(-int_amt_to_spend,true)
 }

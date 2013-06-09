@@ -48,7 +48,7 @@ func (gm * GoldManagerSingleton) get_stashes_within_radius(pos Position, radius 
 func (gm * GoldManagerSingleton) drop_gold(player * Player, amt uint32, pos Position) {
 	var int_amt int32
 	int_amt = int32(amt)
-	amt_to_drop := player.change_gold(-int_amt)
+	amt_to_drop := player.change_gold(-int_amt,false)
 	gm.add_stash(amt_to_drop, pos)
 }
 
@@ -92,7 +92,7 @@ func (gm * GoldManagerSingleton) grab_gold(player * Player, amt uint32, pos Posi
 	gm.connection_manager.receive_gold_message(gold_message)
 	var int_total_grabbed int32
 	int_total_grabbed = int32(total_grabbed)
-	player.change_gold(int_total_grabbed)
+	player.change_gold(int_total_grabbed,false)
 	gm.release_lock()
 	return total_grabbed
 }
