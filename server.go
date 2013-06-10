@@ -2,6 +2,8 @@ package main
 import "log"
 import "code.google.com/p/go.net/websocket"
 import "net/http"
+import "fmt"
+import "sync"
 
 //var LISTENING_ADDR = "127.0.0.1:18080"
 var LISTENING_ADDR = "0.0.0.0:18080"
@@ -39,6 +41,8 @@ var plant_manager_singleton = PlantManagerSingleton {
         connection_manager : & manager_singleton}
 
 
+var id_counter_lock sync.Mutex
+
 /**
   * When receive a new web socket connection, run this code:
   *    1) Creates a new Player
@@ -47,7 +51,8 @@ var plant_manager_singleton = PlantManagerSingleton {
   *       receiving messages from player
   */
 func ws_registration_handler(conn *websocket.Conn) {
-	id_counter += 1  // FIXME: make this atomic
+	id_counter_lock.Lock()
+	id_counter += 1  
 	player := &Player{
 		id: id_counter,
 	        msg_output_queue: make(chan string, 256),
@@ -56,16 +61,16 @@ func ws_registration_handler(conn *websocket.Conn) {
 		plant_manager: &plant_manager_singleton,
 		gold: 0,
 	        points: 0}
-
+	
+	id_counter_lock.Unlock()
+	
 	// listen for messages from server to client
 	go player.write_msg_loop()
 
 	// send the other side an id back as first message
-        log.Println("Assigning player id")
-        log.Println(player.id)
-        log.Println(string(player.id))
-	player.msg_output_queue <- string(player.id)
-	
+	str_id := fmt.Sprintf("%d",int(player.id))
+	player.msg_output_queue <- str_id
+
 	manager_singleton.register_channel <- player
 
 	// When this function completes, remove player from manager
