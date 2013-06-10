@@ -3,7 +3,8 @@ import "log"
 import "code.google.com/p/go.net/websocket"
 import "net/http"
 
-var LISTENING_ADDR = "127.0.0.1:18080"
+//var LISTENING_ADDR = "127.0.0.1:18080"
+var LISTENING_ADDR = "0.0.0.0:18080"
 
 
 // FIXME: want this to be atomic
@@ -60,6 +61,9 @@ func ws_registration_handler(conn *websocket.Conn) {
 	go player.write_msg_loop()
 
 	// send the other side an id back as first message
+        log.Println("Assigning player id")
+        log.Println(player.id)
+        log.Println(string(player.id))
 	player.msg_output_queue <- string(player.id)
 	
 	manager_singleton.register_channel <- player
