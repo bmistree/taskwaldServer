@@ -7,7 +7,8 @@ var LISTENING_ADDR = "127.0.0.1:18080"
 
 
 // FIXME: want this to be atomic
-var id_counter uint32 = 0
+var id_counter uint32 = 1
+const NULL_PLAYER_ID uint32 = 0
 
 var manager_singleton = Manager{
 	all_connections: make (map [uint32] *Player),
@@ -22,6 +23,7 @@ var manager_singleton = Manager{
 	gold_message_channel: make (chan * GoldMessage, 50),
 	player_gold_message_channel: make (chan PlayerGoldMessage, 50),
 	plant_message_channel: make( chan PlayerPlantMessage, 50),
+	fire_message_channel: make(chan FireMessage, 50),
         broadcast_channel: make (chan string, 50)}
 
 
@@ -55,7 +57,11 @@ func ws_registration_handler(conn *websocket.Conn) {
 	        points: 0}
 
 	// listen for messages from server to client
-	go player.write_msg_loop()	
+	go player.write_msg_loop()
+
+	// send the other side an id back as first message
+	player.msg_output_queue <- string(player.id)
+	
 	manager_singleton.register_channel <- player
 
 	// When this function completes, remove player from manager

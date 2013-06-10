@@ -27,7 +27,11 @@ type Manager struct {
 	// probably should have used this for all times when
 	// broadcasting a message from the server to player
 	broadcast_channel chan string
-		
+
+	// when player fires at another player, we receive the fire
+	// message and proceed.
+	fire_message_channel chan FireMessage
+	
 	gold_manager * GoldManagerSingleton
 }
 
@@ -45,6 +49,10 @@ func (man * Manager) receive_gold_message(gold_message * GoldMessage) {
 
 func (man * Manager) notify_new_plant(plant_message PlayerPlantMessage) {
 	man.plant_message_channel <- plant_message
+}
+
+func (man* Manager) receive_fire_message(fire_message FireMessage) {
+	man.fire_message_channel <- fire_message
 }
 
 
@@ -180,6 +188,37 @@ func (man *Manager) manager_loop() {
 
 		case broadcast_message := <- man.broadcast_channel:
 			man.broadcast_msg(broadcast_message)
+
+		case fire_message := <- man.fire_message_channel:
+			man.handle_fire_message(fire_message)
+
 		}
 	}
+}
+
+
+func (man * Manager) handle_fire_message(fire_message FireMessage) {
+	player := fire_message.player
+	shooting_player,exists := man.all_connections[player.id]
+	if (!exists){
+		// shooting player has since logged out
+		return
+	}
+	hit_player_id := fire_message.OpponentHitID
+	if hit_player_id != NULL_PLAYER_ID {
+		// someone got hit.  will have to deduct points from
+		// them and add to hitter
+		hit_player, hp_exists := man.all_connections[hit_player_id]
+		if (hp_exists) {
+			// do not do anything different if hit player
+			// does not exist
+			hit_player.get_hit()
+			shooting_player.hit_someone_else()
+		}
+	}
+
+	fire_message.ShooterID = player.id
+	byter, _ := json.Marshal(fire_message)
+	fire_msg_string := string(byter)
+	man.broadcast_msg (fire_msg_string)
 }

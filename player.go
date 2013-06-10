@@ -6,7 +6,8 @@ import "encoding/json"
 import "math"
 
 const POINT_EXPONENT float64 = .0092
-
+const HIT_COST float64 = .5
+const HIT_GAIN float64 = .25
 
 type Position struct {
 	x, y, z float64
@@ -47,6 +48,39 @@ func abs(val int32) int32{
 	}
 	return val
 }
+
+func (player * Player) get_hit () {
+	player.points -= HIT_COST
+	player.send_player_data_update()
+}
+
+func (player * Player) hit_someone_else () {
+	player.points += HIT_GAIN
+	player.send_player_data_update()
+}
+
+func (player * Player) send_player_data_update () {
+	var pdm PlayerDataMessage
+	pdm.MsgType = PLAYER_DATA_MESSAGE_TYPE
+	pdm.GoldAmt = player.gold
+	pdm.Points = player.points
+	pdm.ID = player.id
+	pdm.Me = true
+	
+	byter, _ := json.Marshal(pdm)
+	msg_string := string(byter)
+	player.msg_output_queue <- msg_string
+
+	pdm.Me = false
+	byter, _ = json.Marshal(pdm)
+	msg_string = string(byter)
+
+	// notify everyone that this player's score has
+	// changed so that they can update their scoreboards.
+	player.man.add_msg_for_broadcast(msg_string)
+}
+
+
 
 // Changes gold by amt_to_change_by (note, this value can be
 // negative), while assuring always have >=0 gold on player.  Returns
@@ -152,6 +186,15 @@ type GoldMessage struct {
 	ChangedSubmessages [] ChangedGoldSubmessage
 }
 
+const FIRE_MESSAGE_TYPE = "fire_message"
+type FireMessage struct {
+	MsgType string
+        Dest_x, Dest_y, Dest_z float64
+	OpponentHitID uint32
+	ShooterID uint32
+	player *Player
+}
+
 
 /*** Gold messages *from* player */
 const PLAYER_GOLD_MESSAGE_TYPE = "gold_message"
@@ -235,7 +278,22 @@ func (player *Player) try_decode_player_position_msg(msg string) bool{
 	return true
 }
 
-
+func (player * Player) try_decode_fire_message (msg string) bool {
+	var fm FireMessage
+	err := json.Unmarshal([]byte(msg),&fm)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	
+	if fm.MsgType != FIRE_MESSAGE_TYPE {
+		return false
+	}
+	
+	fm.player = player
+	player.man.receive_fire_message(fm)
+	return true
+}
 
 // should be three types of messages:
 // 1) this is my position
@@ -255,6 +313,7 @@ func (player * Player) read_msg_loop() {
 		if player.try_decode_player_position_msg(message) {
 		} else if player.try_decode_player_gold_msg(message) {
 		} else if player.try_decode_player_plant_msg(message) {
+		} else if player.try_decode_fire_message (message) {
 		} else {
 			log.Println("Unknown message type")
 		}		
